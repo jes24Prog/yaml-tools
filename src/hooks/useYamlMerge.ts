@@ -14,6 +14,7 @@ interface UseYamlMergeOptions {
   targetYaml: string;
   autoUpdate: boolean;
   trackChanges: boolean;
+  addMissingKeys?: boolean;
   debounceMs?: number;
 }
 
@@ -39,6 +40,7 @@ export function useYamlMerge({
   targetYaml,
   autoUpdate,
   trackChanges,
+  addMissingKeys = false,
   debounceMs = 400,
 }: UseYamlMergeOptions): UseYamlMergeResult {
   const [outputYaml, setOutputYaml] = useState("");
@@ -113,7 +115,7 @@ export function useYamlMerge({
       const result = mergeYamlDocuments(
         primaryResult.value as YamlObject,
         targetResult.value as YamlObject,
-        { trackChanges },
+        { trackChanges, addMissingKeys },
       );
 
       setOutputYaml(formatYaml(result.output));
@@ -123,7 +125,7 @@ export function useYamlMerge({
     } finally {
       setIsProcessing(false);
     }
-  }, [primaryYaml, targetYaml, trackChanges]);
+  }, [primaryYaml, targetYaml, trackChanges, addMissingKeys]);
 
   useEffect(() => {
     if (!autoUpdateRef.current) {

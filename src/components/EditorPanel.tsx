@@ -41,7 +41,7 @@ export function EditorPanel({
   toolbar,
 }: EditorPanelProps) {
   return (
-    <section className="flex min-h-[420px] flex-col overflow-hidden rounded-xl border border-edge-1 bg-surface-1 shadow-lg shadow-black/20 lg:min-h-0">
+    <section className="flex min-h-[420px] flex-col overflow-hidden rounded-xl border border-edge-1 bg-surface-1 shadow-lg shadow-black/20">
       <header className="flex flex-none flex-col gap-2 border-b border-edge-1 bg-surface-2 px-4 py-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">

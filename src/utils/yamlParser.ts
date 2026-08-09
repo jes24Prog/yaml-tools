@@ -66,14 +66,14 @@ export function isPlainObject(value: unknown): value is YamlObject {
  * Recursively converts a parsed YAML value to a plain JSON-friendly value,
  * stripping any document-level YAML metadata (e.g. anchors/aliases markers).
  */
-export function toPlainValue(value: YamlValue): YamlValue {
+export function toPlainValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(toPlainValue);
   }
   if (isPlainObject(value)) {
     const out: Record<string, YamlValue> = {};
     for (const key of Object.keys(value)) {
-      out[key] = toPlainValue(value[key]);
+      out[key] = toPlainValue(value[key]) as YamlValue;
     }
     return out;
   }

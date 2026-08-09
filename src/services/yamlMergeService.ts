@@ -9,12 +9,15 @@ import type {
 export interface MergeOptions {
   /** When enabled, detailed per-key change records are produced. */
   trackChanges?: boolean;
+  /** When enabled, keys that exist only in the override source are added to the output. */
+  addMissingKeys?: boolean;
 }
 
 interface MergeContext {
   statistics: MergeStatistics;
   changes: ValueChange[];
   trackChanges: boolean;
+  addMissingKeys: boolean;
 }
 
 function isPlainObject(value: unknown): value is YamlObject {
@@ -59,7 +62,9 @@ function valueToString(value: unknown): string {
  *     the override value replaces the target value (arrays are replaced whole);
  *   - otherwise the target value is preserved.
  *
- * Keys that exist only in `override` are never added to the result.
+ * Keys that exist only in `override` are only added to the result when
+ * `options.addMissingKeys` is enabled, in which case they are appended after
+ * the target keys at each level.
  * The key ordering of `target` is always preserved.
  */
 export function mergeYamlDocuments(
@@ -68,9 +73,10 @@ export function mergeYamlDocuments(
   options: MergeOptions = {},
 ): MergeResult {
   const context: MergeContext = {
-    statistics: { keysProcessed: 0, valuesUpdated: 0, keysPreserved: 0 },
+    statistics: { keysProcessed: 0, valuesUpdated: 0, keysPreserved: 0, keysAdded: 0 },
     changes: [],
     trackChanges: options.trackChanges ?? false,
+    addMissingKeys: options.addMissingKeys ?? false,
   };
 
   const output = mergeObject(overrideSource, targetConfiguration, "", context);
@@ -130,9 +136,26 @@ function mergeObject(
     }
   }
 
+  for (const key of Object.keys(overrideSource)) {
+    if (!Object.prototype.hasOwnProperty.call(targetConfiguration, key) && context.addMissingKeys) {
+      const keyPath = basePath === "" ? key : `${basePath}.${key}`;
+      const overrideValue = overrideSource[key];
+      result[key] = overrideValue;
+      context.statistics.keysAdded += 1;
+      if (context.trackChanges) {
+        context.changes.push({
+          path: keyPath,
+          oldValue: "",
+          newValue: valueToString(overrideValue),
+          type: "added",
+        });
+      }
+    }
+  }
+
   return result;
 }
 
 export function createEmptyStatistics(): MergeStatistics {
-  return { keysProcessed: 0, valuesUpdated: 0, keysPreserved: 0 };
+  return { keysProcessed: 0, valuesUpdated: 0, keysPreserved: 0, keysAdded: 0 };
 }

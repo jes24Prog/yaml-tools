@@ -13,9 +13,11 @@ export interface MergeStatistics {
   valuesUpdated: number;
   /** Number of leaf keys kept unchanged from the target configuration. */
   keysPreserved: number;
+  /** Number of keys that only exist in the override source and were added to the output. */
+  keysAdded: number;
 }
 
-export type ChangeType = "updated" | "preserved";
+export type ChangeType = "updated" | "preserved" | "added";
 
 export interface ValueChange {
   /** Dot/path notation of the key within the target document. */

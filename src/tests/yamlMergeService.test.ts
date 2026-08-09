@@ -38,6 +38,7 @@ describe("yamlMergeService", () => {
         keysProcessed: 4,
         valuesUpdated: 2,
         keysPreserved: 2,
+        keysAdded: 0,
       });
     });
   });
@@ -63,6 +64,79 @@ describe("yamlMergeService", () => {
       const result = mergeYaml("A: 100\nB: 200\nNEW: 300", "A: 1\nB: 2");
       expect(result.output).toEqual({ A: 100, B: 200 });
       expect("NEW" in result.output).toBe(false);
+    });
+  });
+
+  describe("addMissingKeys", () => {
+    function mergeYamlWithAdded(primary: string, target: string, trackChanges = false) {
+      const p = parseYamlObject(primary);
+      const t = parseYamlObject(target);
+      if (p.error) {
+        throw new Error(`Primary parse failed: ${p.error.message}`);
+      }
+      if (t.error) {
+        throw new Error(`Target parse failed: ${t.error.message}`);
+      }
+      const result = mergeYamlDocuments(p.value as YamlObject, t.value as YamlObject, {
+        trackChanges,
+        addMissingKeys: true,
+      });
+      return {
+        output: result.output as YamlObject,
+        statistics: result.statistics,
+        changes: result.changes,
+      };
+    }
+
+    it("adds top-level primary-only keys to the output", () => {
+      const result = mergeYamlWithAdded("A: 100\nB: 200\nNEW: 300", "A: 1\nB: 2");
+      expect(result.output).toEqual({ A: 100, B: 200, NEW: 300 });
+      expect(result.statistics.keysAdded).toBe(1);
+    });
+
+    it("appends added keys after the target keys, preserving target order", () => {
+      const result = mergeYamlWithAdded("Z: 9\nA: 100\nMID: 1", "A: 1\nB: 2");
+      expect(Object.keys(result.output)).toEqual(["A", "B", "Z", "MID"]);
+    });
+
+    it("adds nested primary-only keys inside matching objects", () => {
+      const primary = "db:\n  host: newhost\n  port: 5432";
+      const target = "db:\n  host: oldhost\n  user: admin";
+      const result = mergeYamlWithAdded(primary, target);
+      expect(result.output).toEqual({ db: { host: "newhost", user: "admin", port: 5432 } });
+      expect(result.statistics.keysAdded).toBe(1);
+    });
+
+    it("counts only genuinely new keys in the statistics", () => {
+      const result = mergeYamlWithAdded("x: 1\ny: 2\nonlyA: 1\nonlyB: 2", "x: 9\nz: 3");
+      expect(result.statistics.keysProcessed).toBe(2);
+      expect(result.statistics.valuesUpdated).toBe(1);
+      expect(result.statistics.keysPreserved).toBe(1);
+      expect(result.statistics.keysAdded).toBe(3);
+    });
+
+    it("records added changes when tracking is enabled", () => {
+      const result = mergeYamlWithAdded("name: new\nextra: 1", "name: old", true);
+      expect(result.changes).toEqual([
+        { path: "name", oldValue: "old", newValue: "new", type: "updated" },
+        { path: "extra", oldValue: "", newValue: "1", type: "added" },
+      ]);
+    });
+
+    it("uses dotted paths for nested added keys", () => {
+      const result = mergeYamlWithAdded("db:\n  port: 5432", "db:\n  host: x", true);
+      expect(result.changes.some((change) => change.type === "added" && change.path === "db.port")).toBe(
+        true,
+      );
+    });
+
+    it("keeps the output identical to the default behaviour when disabled", () => {
+      const primary = "A: 100\nNEW: 300";
+      const target = "A: 1\nB: 2";
+      const disabled = mergeYaml(primary, target);
+      const enabled = mergeYamlWithAdded(primary, target);
+      expect(disabled.output).toEqual({ A: 100, B: 2 });
+      expect(enabled.output).toEqual({ A: 100, B: 2, NEW: 300 });
     });
   });
 

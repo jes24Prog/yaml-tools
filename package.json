@@ -1,9 +1,9 @@
 {
-  "name": "yaml-value-override-tool",
+  "name": "yaml-workbench",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "A client-side developer utility that overrides values in a target YAML configuration using values from a primary YAML document.",
+  "description": "A client-side workbench with 36 integrated tools for editing, validating, converting, diffing, merging and generating YAML.",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -24,9 +24,11 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
+    "fast-xml-parser": "^5.10.1",
     "monaco-editor": "^0.56.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "smol-toml": "^1.7.1",
     "yaml": "^2.9.0"
   }
 }

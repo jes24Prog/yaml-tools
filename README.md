@@ -1,6 +1,6 @@
-# YAML Value Override Tool
+# YAML Workbench
 
-A production-ready, fully client-side React developer utility that overrides values in a **Target** YAML configuration using values from a **Primary** YAML document — while preserving the Target's structure, key order, and YAML data types.
+A production-ready, fully client-side **React + TypeScript** workbench with 36 integrated tools for working with YAML — editing, validating, formatting, converting, diffing/merging, querying, generating Kubernetes/docker/CI configs, scanning for secrets, and more. It grew out of the original **YAML Value Override Tool** and keeps that tool as one of its members.
 
 > **100% client-side.** No backend, no database, no API, no external service. Your YAML never leaves the browser.
 
@@ -9,8 +9,8 @@ A production-ready, fully client-side React developer utility that overrides val
 ## Table of Contents
 
 1. [Project overview](#1-project-overview)
-2. [Features](#2-features)
-3. [Screenshots](#3-screenshots)
+2. [Tools](#2-tools)
+3. [YAML Value Override](#3-yaml-value-override)
 4. [Technology stack](#4-technology-stack)
 5. [Installation](#5-installation)
 6. [Development](#6-development)
@@ -23,30 +23,62 @@ A production-ready, fully client-side React developer utility that overrides val
 13. [Nested YAML behavior](#13-nested-yaml-behavior)
 14. [Array behavior](#14-array-behavior)
 15. [Data type handling](#15-data-type-handling)
-16. [Error handling](#16-error-handling)
+16. [Local storage behavior](#16-local-storage-behavior)
 17. [Security](#17-security)
 18. [Privacy](#18-privacy)
-19. [Local storage behavior](#19-local-storage-behavior)
-20. [Deployment](#20-deployment)
-21. [Vercel deployment](#21-vercel-deployment)
-22. [Netlify deployment](#22-netlify-deployment)
-23. [GitHub Pages deployment](#23-github-pages-deployment)
-24. [Troubleshooting](#24-troubleshooting)
-25. [Future enhancement ideas](#25-future-enhancement-ideas)
+19. [Deployment](#19-deployment)
+20. [Troubleshooting](#20-troubleshooting)
 
 ---
 
 ## 1. Project overview
 
-**YAML Value Override Tool** is a developer utility with exactly three YAML editors:
+**YAML Workbench** is a developer utility that presents every feature as a **tool**. Tools live in a sidebar grouped by category, are switchable via the command palette (`Ctrl+K`) or keyboard shortcuts, and share a common **document model** (the active document plus a tabbed document list) and a **source buffer** convention.
 
-| Panel | Role |
-| ----- | ---- |
-| **Primary YAML** | Source of **values** (overrides) |
-| **Target YAML** | Source of **keys / structure** (the shape that is preserved) |
-| **Output YAML** | The generated result (read-only) |
+Core concepts:
 
-The mental model is:
+| Concept | Description |
+| ------- | ----------- |
+| **Documents** | Tabbed files (`yaml`, `json`, `toml`, `env`, `properties`, `xml`, `text`). All persisted locally and restored on reload. |
+| **Active document** | The document most tools read from and write back to via **Apply to active document**. |
+| **Tools** | 36 feature panels registered in `src/app/toolRegistry.tsx`, each with a unique id, icon, category and keywords. |
+| **Source buffers** | Many tools keep an editable in-tool copy of the active document (`useToolSource`) so they never mutate your file until you explicitly apply. |
+| **Workspace** | Save/restore the whole document set, settings, and current tool to a single JSON file (`serializeWorkspace`). |
+
+---
+
+## 2. Tools
+
+| Category | Tools |
+| -------- | ----- |
+| **Editor** | YAML Editor (Monaco), YAML Tree (collapsible browse) |
+| **Validation** | YAML Validator (syntax + top-level issues) |
+| **Formatting** | YAML Formatter (indent/quotes/order), YAML Minifier (one-line) |
+| **Conversion** | YAML ⇄ JSON, YAML ⇄ TOML, YAML ⇄ Env, YAML ⇄ Properties, YAML ⇄ XML |
+| **Diff & Merge** | Diff YAML (tree + unified view), Merge YAML (strategies + per-path conflict resolution), YAML Value Override |
+| **Query** | YAML Query (JSONPath-style selectors), Search & Replace (keys/values with regex/whole-word) |
+| **Transformation** | YAML Cleaner, YAML Sorter, Flatten / Unflatten (dotted keys) |
+| **Schema** | Schema Validator (JSON Schema), Schema Generator (infer a schema from YAML) |
+| **Analysis** | YAML Analyzer (stats, depth, empty values, long strings), Docs Generator (Markdown reference) |
+| **Environment** | Env Substitution (`${VAR}` placeholders), Env Matrix (compare multiple `.env` files) |
+| **Kubernetes** | Kubernetes Inspector, Kubernetes Generators (Deployment, Service, ConfigMap, Secret, HPA, PVC…) |
+| **Docker** | Docker Compose Inspector |
+| **CI/CD** | CI/CD Inspector (GitHub Actions, GitLab CI, Azure Pipelines) |
+| **OpenAPI** | OpenAPI Inspector (paths, servers, security schemes) |
+| **Templates** | Template Engine (placeholder rendering) |
+| **Snippets** | Reusable YAML building blocks (stored locally) |
+| **Generators** | Config Generators (docker-compose, GitHub Actions, Spring Boot, Kubernetes…) |
+| **Security** | Secret Scanner (passwords, tokens, private keys) |
+| **Workspace** | Multi-Document YAML (split/combine), Workspace (import/export/backup) |
+| **Settings** | Theme, font size, tab size, word wrap, export format… |
+
+Every tool's output panel supports **copy**, **download**, and — when it produces YAML — **Apply to active document**.
+
+---
+
+## 3. YAML Value Override
+
+The original single-purpose tool, now one of the diff & merge tools. It overrides values in a **Target** YAML using values from a **Primary** YAML, while preserving the Target's structure, key order, and data types.
 
 ```
 INPUT 1 (Primary) = VALUE OVERRIDE SOURCE
@@ -54,74 +86,41 @@ INPUT 2 (Target)  = OUTPUT KEY/STRUCTURE SOURCE
 OUTPUT            = INPUT 2 PRESERVED, WITH MATCHING VALUES REPLACED BY INPUT 1
 ```
 
-This is **not** a generic merge ("union of everything"). A key that exists only in Primary is **never** added to the output.
+Key options:
 
-### Basic example
+- **Update Values** — runs the merge on demand.
+- **Auto Update** — debounced re-generation whenever both inputs are valid YAML.
+- **Add missing fields** *(default off)* — when enabled, keys that exist **only in the Primary** are appended to the output (at every nesting level), after the Target's keys.
+- **Show changes** — lists every overridden key (old → new) and every added field.
+- **Format / Copy / Download / Apply to document / Swap / Clear**.
 
-**Primary YAML**
+### Example
+
+**Primary** → **Target** → **Output** (with *Add missing fields* off):
 
 ```yaml
+# Primary
 USERNAME-USER: "value"
 AGE_AGE: 15
 ```
 
-**Target YAML**
-
 ```yaml
+# Target
 PASSWORD_PASS: "12345"
 USERNAME-USER: "bababab"
 WHATEVER: "HELLO"
 AGE_AGE: 152323
 ```
 
-**Output YAML** (after clicking **Update Values**)
-
 ```yaml
+# Output
 PASSWORD_PASS: "12345"
 USERNAME-USER: "value"
 WHATEVER: "HELLO"
 AGE_AGE: 15
 ```
 
-- `PASSWORD_PASS` exists only in Target → unchanged.
-- `USERNAME-USER` exists in both → Primary value `"value"` replaces `"bababab"`.
-- `WHATEVER` exists only in Target → unchanged.
-- `AGE_AGE` exists in both → Primary value `15` replaces `152323`.
-
----
-
-## 2. Features
-
-- **Three synchronized editor panels** — Primary, Target, and read-only Output.
-- **Update Values** — runs the merge algorithm on demand.
-- **Auto Update** toggle (default off) — re-generates the output (debounced) whenever both inputs are valid YAML.
-- **Format** — re-formats Primary, Target, or Output YAML (configurable target).
-- **Copy Output** — copies the generated YAML to the clipboard with "Copied!" feedback.
-- **Download YAML** — downloads the result as `updated-config.yaml`.
-- **Clear** — empties all three editors.
-- **Swap Inputs** — exchanges Primary and Target YAML.
-- **Load Example** — loads the built-in example document.
-- **Show Changes** — lists every overridden key with its old and new value (does not affect output).
-- **Statistics** — keys processed / values updated / keys preserved.
-- **Nested objects** — recursive merge, same rules at every level.
-- **Arrays** — replaced wholesale (indexes are never merged).
-- **Data type preservation** — strings, numbers, floats, booleans, `null`, arrays, objects, multiline strings, quoted/unquoted strings.
-- **Strict key matching** — case-sensitive, hyphen vs. underscore respected, no normalization.
-- **Key order preservation** — the Output keeps the Target's key order; never sorts.
-- **Inline validation errors** — invalid YAML is flagged on the offending editor with line/column info.
-- **Monaco Editor** — YAML syntax highlighting, line numbers, folding, bracket matching, find/replace, dark & light themes.
-- **Dark / Light theme toggle**, persisted.
-- **localStorage persistence** for editor contents and settings, with a **Clear Saved Data** control.
-- **Responsive layout** — three columns on desktop, stacked on mobile.
-- **Fully offline** — Monaco is bundled locally (no CDN), and all processing is in-browser.
-
----
-
-## 3. Screenshots
-
-> Screenshots coming soon.
->
-> *(Add your own images here: e.g. `docs/screenshot-dark.png`, `docs/screenshot-light.png`, `docs/screenshot-mobile.png`.)*
+With **Add missing fields** on, a Primary-only key such as `NEW_KEY: 300` would be appended to the output.
 
 ---
 
@@ -134,6 +133,8 @@ AGE_AGE: 15
 | Build tool | [Vite 8](https://vitejs.dev) |
 | Styling | [Tailwind CSS 4](https://tailwindcss.com) + CSS custom properties |
 | YAML engine | [`yaml`](https://www.npmjs.com/package/yaml) v2 |
+| TOML engine | [`smol-toml`](https://www.npmjs.com/package/smol-toml) |
+| XML engine | [`fast-xml-parser`](https://www.npmjs.com/package/fast-xml-parser) |
 | Editor | [Monaco Editor](https://microsoft.github.io/monaco-editor/) via `@monaco-editor/react` |
 | Testing | [Vitest](https://vitest.dev) |
 
@@ -144,12 +145,9 @@ AGE_AGE: 15
 Requirements: **Node.js 20+** and **npm**.
 
 ```bash
-git clone <your-repo-url>
-cd yaml-value-override-tool
+cd yaml-tools
 npm install
 ```
-
-> The scaffold originally targeted `yaml-tools`; rename the folder to `yaml-value-override-tool` if you wish (the `name` in `package.json` is already `yaml-value-override-tool`).
 
 ---
 
@@ -182,65 +180,53 @@ npm run test:watch # runs tests in watch mode
 npm run lint       # type-checks with tsc --noEmit
 ```
 
-The suite covers the full merge contract (see [Merge rules](#12-merge-rules)):
-
-- Basic replacement, no matching keys, partial matching
-- Input-1-only keys are never added
-- Nested objects (recursive), deep hierarchies, mixed objects/arrays
-- Arrays replaced wholesale (including arrays of objects)
-- Data types: booleans, integers, floats, `null`, empty strings, `"null"` vs `null`, special characters, block strings, quoted/unquoted strings
-- Strict key matching: hyphens, underscores, case-sensitivity, numeric suffixes
-- Key ordering (root and nested)
-- Statistics accounting
-- Change tracking (updated / preserved, dotted paths)
-- Parser behavior: invalid YAML, root scalar, root array, empty document
+The suite covers the full merge contract, including the *add missing fields* option, plus YAML parser behavior. Business logic (`src/services/`) is pure TypeScript with zero React dependencies and is fully unit-testable.
 
 ---
 
 ## 9. Architecture
 
-The application is split into **presentation** (`components/`, `App.tsx`) and **business logic** (`services/`, `utils/`, `hooks/`).
+The application is split into **presentation** (`components/`, `features/`, `app/`) and **business logic** (`services/`, `utils/`, `hooks/`).
 
-- **Business logic is framework-agnostic.** `src/services/yamlMergeService.ts` and `src/utils/yamlParser.ts` are pure TypeScript with zero React dependencies, so the merge algorithm is independently unit-testable.
-- **State orchestration** lives in `src/hooks/useYamlMerge.ts` (parsing → merging → serialization + debounce) and `src/hooks/useLocalStorage.ts` (persistence).
-- **Editors** are isolated in `YamlEditor.tsx` and wrapped by `EditorPanel.tsx`.
-- **Theming** is driven by CSS custom properties on a `data-theme` attribute, mapped into Tailwind utilities with `@theme inline`.
+- **Tool registry** — `src/app/toolRegistry.tsx` declares all 36 tools (id, name, description, category, keywords, icon, component, shortcut) and exposes `toolById(id)`.
+- **Workbench context** — `src/app/workbenchContext.tsx` owns documents, tabs, settings/theme, active tool, favorites/recents, notifications and the command-palette flag, and persists everything to `localStorage`.
+- **Tool shell** — `src/features/shared/ToolShell.tsx` provides shared UI primitives (`ToolPage`, `ToolButton`, `YamlSourcePanel`, `OutputView`, `SplitLayout`, `Stat`, `SeverityBadge`, `PathTag`…). Tools reuse these instead of building their own chrome.
+- **Source buffers** — `src/features/shared/hooks.ts` (`useToolSource`, `useToolSources`) handles the editable-in-tool copy and `applyToActive` back to the active document.
+- **Business logic is framework-agnostic.** `src/services/` holds pure TypeScript (merge, diff, query, search, flatten, schema, env, k8s, docker-compose, ci/cd, openapi, secrets, templates, snippets, converters…), independently unit-testable.
+- **Editors** are isolated in `YamlEditor.tsx` and wrapped by `EditorPanel.tsx` (used by the Override tool) and `YamlSourcePanel.tsx` (used by most other tools).
+- **Theming** is driven by CSS custom properties on a `data-theme` attribute, mapped into Tailwind utilities with `@theme inline`. Monaco themes (`yaml-tool-dark` / `yaml-tool-light`) are defined in `monacoSetup.ts`.
 
 ---
 
 ## 10. Folder structure
 
 ```
-yaml-value-override-tool/
+yaml-tools/
 ├── public/
 │   └── favicon.svg
 ├── src/
+│   ├── app/
+│   │   ├── toolRegistry.tsx      # 36 tool declarations + CATEGORY_LABELS + toolById
+│   │   └── workbenchContext.tsx  # documents, settings, favorites, notifications…
 │   ├── components/
+│   │   ├── shell/                # Sidebar, Topbar, Tabs, CommandPalette, Notifications
+│   │   ├── ui.tsx                # Button, Select, Toggle, Field, TextInput, Panel…
+│   │   ├── Icons.tsx             # ToolGlyph + category icon map
 │   │   ├── YamlEditor.tsx        # Monaco wrapper (syntax, markers, read-only)
-│   │   ├── EditorPanel.tsx       # Panel chrome: header, badge, description
-│   │   ├── Toolbar.tsx           # All action buttons + toggles
-│   │   ├── Statistics.tsx        # keys processed / updated / preserved
-│   │   ├── ChangeViewer.tsx      # old vs. new override diffs
-│   │   ├── ErrorMessage.tsx      # inline YAML validation errors
-│   │   └── StatusMessage.tsx     # transient feedback messages
-│   ├── services/
-│   │   └── yamlMergeService.ts   # THE merge algorithm (pure, testable)
-│   ├── utils/
-│   │   ├── yamlParser.ts         # safe parsing + root-type validation
-│   │   ├── yamlFormatter.ts      # serialization / pretty-printing
-│   │   ├── yamlLanguage.ts       # custom Monaco Monarch YAML grammar
-│   │   ├── clipboard.ts          # clipboard helper with fallback
-│   │   └── download.ts           # Blob download helper
-│   ├── hooks/
-│   │   ├── useYamlMerge.ts       # parse → merge → serialize orchestration
-│   │   └── useLocalStorage.ts    # typed localStorage state
-│   ├── types/
-│   │   └── yaml.ts               # shared domain types
-│   ├── tests/
-│   │   ├── yamlMergeService.test.ts
-│   │   └── yamlParser.test.ts
-│   ├── monacoSetup.ts            # local Monaco + YAML language registration
-│   ├── App.tsx
+│   │   ├── EditorPanel.tsx       # Override tool panel chrome
+│   │   ├── ChangeViewer.tsx      # old vs. new override diffs + added fields
+│   │   └── …                     # ErrorMessage, Statistics, StatusMessage
+│   ├── features/
+│   │   ├── shared/               # ToolShell.tsx + hooks.ts (source buffers)
+│   │   ├── override/             # YAML Value Override
+│   │   ├── diff/ · merge/ · query/ · search/ · flatten/ · analyzer/ …
+│   │   └── … (one folder per tool, each default-exporting a tool component)
+│   ├── services/                 # pure TS business logic (see Architecture)
+│   ├── hooks/                    # useYamlMerge, useLocalStorage
+│   ├── types/                    # workbench.ts (tool/doc/settings types), yaml.ts
+│   ├── tests/                    # yamlMergeService.test.ts, yamlParser.test.ts
+│   ├── monacoSetup.ts            # local Monaco + YAML language + themes
+│   ├── App.tsx                   # shell: provider + sidebar/tabs/topbar + active tool
 │   ├── main.tsx
 │   └── index.css                 # Tailwind v4 + theme variables
 ├── package.json
@@ -254,7 +240,7 @@ yaml-value-override-tool/
 
 ## 11. YAML merge algorithm
 
-`src/services/yamlMergeService.ts` implements:
+`src/services/yamlMergeService.ts` implements the Override tool:
 
 ```
 INPUT 1 = overrideSource
@@ -269,11 +255,14 @@ For every key K in targetConfiguration:
     Else:
         Output[K] = targetConfiguration[K]                                  # preserved
 
-Never add keys that exist only in overrideSource.
+When addMissingKeys is enabled:
+    For every key K in overrideSource not in targetConfiguration:
+        Output[K] = overrideSource[K]                                       # appended
+
 Preserve targetConfiguration key ordering.
 ```
 
-The implementation is a single recursive function that walks `targetConfiguration` and consults `overrideSource` at each key.
+The implementation is a single recursive function that walks `targetConfiguration` and consults `overrideSource` at each key, with a second pass over `overrideSource` only when *add missing fields* is on.
 
 ---
 
@@ -283,9 +272,9 @@ The implementation is a single recursive function that walks `targetConfiguratio
 | ---- | -------- |
 | **Rule 1 — Key in both** | Output value = Input 1 (Primary) value. |
 | **Rule 2 — Key only in Input 2** | Output value = Input 2 (Target) value — preserved. |
-| **Rule 3 — Key only in Input 1** | **Not added** to the output. |
+| **Rule 3 — Key only in Input 1** | **Not added** to the output, unless *Add missing fields* is enabled (then appended at the end of the level). |
 | **Rule 4 — Exact matching** | Keys are never normalized. `USERNAME-USER`, `USERNAME_USER`, `username-user` and `USERNAME-USER-2` are four different keys. Case matters. |
-| **Rule 5 — Ordering** | Output preserves Input 2's key order. Never sorted. |
+| **Rule 5 — Ordering** | Output preserves Input 2's key order. Never sorted. Added keys are appended after Input 2's keys. |
 
 ---
 
@@ -316,47 +305,28 @@ database:
 
 ## 14. Array behavior
 
-When a matching key holds an array, the **entire Target array is replaced** by the Primary array. Array indexes are never merged element-by-element.
-
-```yaml
-# Primary                        # Target
-servers:                         servers:
-  - server1                        - oldserver1
-  - server2                        - oldserver2
-
-# Output
-servers:
-  - server1
-  - server2
-```
-
-If a matching key holds an array in one document but a non-array in the other, the ordinary "override wins" rule applies.
+When a matching key holds an array, the **entire Target array is replaced** by the Primary array. Array indexes are never merged element-by-element. If a matching key holds an array in one document but a non-array in the other, the ordinary "override wins" rule applies.
 
 ---
 
 ## 15. Data type handling
 
-Values are merged as parsed YAML nodes — nothing is coerced to a string. The `yaml` library is used for both parsing and serialization, so the following round-trip losslessly:
-
-- strings (quoted and unquoted)
-- integers and floating-point numbers
-- booleans
-- `null`
-- arrays (of scalars or objects)
-- objects (nested arbitrarily deep)
-- multiline block strings (`|`, `>`)
-- special characters (`&`, `<`, `>`, `#`, `:`, `-`, etc.)
-- explicit empty values (`VALUE:`) vs. `null` vs. `""` vs. `"null"` are preserved as distinct YAML constructs where the input distinguishes them.
+Values are merged as parsed YAML nodes — nothing is coerced to a string. The `yaml` library is used for both parsing and serialization, so the following round-trip losslessly: strings (quoted and unquoted), integers and floats, booleans, `null`, arrays (of scalars or objects), arbitrarily deep objects, multiline block strings, special characters, and the distinction between `VALUE:` / `null` / `""` / `"null"`.
 
 ---
 
-## 16. Error handling
+## 16. Local storage behavior
 
-- **Invalid YAML** → an inline error appears on the affected editor with the parser's message plus line/column when available, and the corresponding Monaco editor gets a squiggly marker. The application never crashes.
-- **Empty inputs** → "Primary YAML is empty." / "Target YAML is empty." is shown and no output is generated.
-- **Root type validation** → if the root is a scalar, an array, or otherwise not an object/map, the editor shows "Root YAML must be an object/map."
-- **Clipboard failure** → graceful fallback to a hidden textarea + `document.execCommand`, with a visible failure message if blocked.
-- All YAML content is treated as **untrusted data**; it is never executed or injected into the DOM.
+Everything persists under the `yaml-workbench:*` prefix (best-effort; failures degrade to in-memory):
+
+- `documents` — the document list (debounced)
+- `activeDoc` — the currently active document id
+- `favorites` — favorited tools
+- `recents` — recently used tools
+- `settings` — theme, font size, tab size, word wrap, export format, etc.
+- `snippets` — user-created snippets
+
+Workspace export/import (`Workspace` tool) writes a portable JSON snapshot (`WORKSPACE_VERSION = 1`) that restores documents, active ids, and settings.
 
 ---
 
@@ -366,7 +336,7 @@ Values are merged as parsed YAML nodes — nothing is coerced to a string. The `
 - No `dangerouslySetInnerHTML`.
 - YAML is parsed with the `yaml` library's plain `toJS()` conversion and treated as inert data.
 - Editor contents are rendered by Monaco as plain text (no HTML injection).
-- No secrets are logged or persisted beyond what you type (localStorage is client-only).
+- No secrets are logged or persisted beyond what you type (localStorage is client-only). The **Secret Scanner** helps you find leaked credentials before they ship.
 
 ---
 
@@ -379,84 +349,26 @@ Values are merged as parsed YAML nodes — nothing is coerced to a string. The `
 
 ---
 
-## 19. Local storage behavior
+## 19. Deployment
 
-The following are persisted to `localStorage` (key prefix `yaml-value-override-tool:`):
+The output of `npm run build` is a static `dist/` folder — deployable to any static host (Vercel, Netlify, GitHub Pages, S3…). It is a single-page app with no routes, so no server rewrites are required.
 
-- `primary` — Primary YAML text
-- `target` — Target YAML text
-- `autoUpdate` — Auto Update toggle
-- `showChanges` — Show Changes toggle
-- `theme` — Dark/Light theme
-
-Storage failures (private mode, full quota) degrade gracefully to in-memory behavior. Use **Clear Saved Data** in the footer to wipe all stored values.
+- **Vercel**: import the repo, framework preset **Vite** (auto-detected), build `npm run build`, output `dist`.
+- **Netlify**: import the repo, build `npm run build`, publish directory `dist`.
+- **GitHub Pages**: `npm run build`, then publish `./dist` (e.g. `npx gh-pages -d dist`). If serving from a subpath, set `base: "/<repo>/"` in `vite.config.ts` and rebuild.
 
 ---
 
-## 20. Deployment
-
-The output of `npm run build` is a static `dist/` folder — deployable to any static host. Because it is a single-page app with no routes, no server rewrites are required.
-
----
-
-## 21. Vercel deployment
-
-1. Push the repo to GitHub/GitLab/Bitbucket.
-2. In Vercel, **New Project** → import the repo.
-3. Framework preset: **Vite** (Vercel auto-detects it).
-4. Build command: `npm run build` · Output directory: `dist`.
-5. Deploy. No environment variables needed.
-
----
-
-## 22. Netlify deployment
-
-1. Push the repo to GitHub/GitLab/Bitbucket.
-2. In Netlify, **Add new site** → import the repo.
-3. Build command: `npm run build` · Publish directory: `dist`.
-4. Deploy. No environment variables needed.
-
----
-
-## 23. GitHub Pages deployment
-
-The app is fully static and uses relative-free asset paths produced by Vite, so it can be served from a subpath.
-
-```bash
-npm run build
-# then publish ./dist to a gh-pages branch, for example:
-npx gh-pages -d dist
-```
-
-> If you serve from a subpath such as `https://<user>.github.io/<repo>/`, set `base: "/<repo>/"` in `vite.config.ts` and rebuild.
-
----
-
-## 24. Troubleshooting
+## 20. Troubleshooting
 
 | Symptom | Fix |
 | ------- | --- |
 | Monaco loads but looks broken / falls back | Ensure `src/main.tsx` imports `./monacoSetup` **before** rendering. The local Monaco bundle is configured there (no CDN). |
-| YAML text "disappears" after reload | localStorage may be unavailable (private mode) or the storage quota is full. Content persists best-effort; use **Clear Saved Data** to reset. |
-| Very large YAML files feel slow | Auto Update is debounced (400 ms). Disable Auto Update and use **Update Values** for very large documents. |
-| Output shows `null` for an empty panel | Output is only generated when **both** inputs are valid YAML objects and **Update Values** (or Auto Update) has run. |
+| Tool panels collapse / editors invisible on large screens | The Override tool's editor panels use a fixed minimum height; if a custom tool panel collapses, give its inner editor container a `min-h-[…]` (see `EditorPanel.tsx`). |
+| Documents "disappear" after reload | localStorage may be unavailable (private mode) or full. Content persists best-effort; use the **Workspace** tool to back up. |
+| Very large YAML files feel slow | Disable **Auto Update** (it is debounced at 400 ms) and trigger the transform manually. |
 | Build warns about a large chunk | Expected — Monaco is bundled locally. The warning is informational; gzip (~800 KB) is dominated by Monaco. |
 | `npm install` fails | Use Node.js 20+. Delete `node_modules`/`package-lock.json` and retry. |
-
----
-
-## 25. Future enhancement ideas
-
-- JSON ↔ YAML input conversion (parse JSON in the editors, output YAML).
-- Schema-aware validation (e.g. JSON Schema for the Target).
-- YAML anchors/aliases round-trip support.
-- Diff view of Output vs. Target with colors and folding.
-- Multiple named Target configurations (tabs).
-- Env-file (`.env`) import/export.
-- History / undo stack across all three editors.
-- Keyboard shortcut reference overlay (⌘/Ctrl+Enter to update).
-- PWA support for offline use.
-- i18n for the UI.
 
 ---
 
