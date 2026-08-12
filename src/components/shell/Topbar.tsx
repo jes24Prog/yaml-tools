@@ -17,6 +17,8 @@ export function Topbar() {
     importFiles,
     exportDocument,
     saveWorkspace,
+    sidebarCollapsed,
+    setSidebarCollapsed,
   } = useWorkbench();
 
   const activeTool = toolById(activeToolId);
@@ -29,10 +31,14 @@ export function Topbar() {
         event.preventDefault();
         setPaletteOpen(true);
       }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        setSidebarCollapsed(!sidebarCollapsed);
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [setPaletteOpen]);
+  }, [setPaletteOpen, setSidebarCollapsed, sidebarCollapsed]);
 
   const toggleTheme = () => {
     updateSettings({ theme: themeMode === "dark" ? "light" : "dark" });
@@ -40,6 +46,24 @@ export function Topbar() {
 
   return (
     <header className="flex h-12 flex-none items-center gap-3 border-b border-edge-1 bg-surface-2 px-4">
+      <Button
+        variant="ghost"
+        title={sidebarCollapsed ? "Show sidebar (Ctrl+B)" : "Hide sidebar (Ctrl+B)"}
+        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          className="h-4 w-4"
+        >
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <line x1="9" y1="4" x2="9" y2="20" />
+        </svg>
+      </Button>
+
       <div className="flex min-w-0 items-center gap-2.5">
         <div className="flex h-7 w-7 flex-none items-center justify-center rounded-lg bg-emerald-600/15 text-emerald-400">
           <ToolGlyph icon={activeTool?.icon ?? "file"} className="h-4 w-4" />
